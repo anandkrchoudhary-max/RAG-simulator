@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Engine Simulator | Stripe Edition</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        stripe: {
+                            navy: '#0A2540',
+                            slate: '#425466',
+                            purple: '#635BFF',
+                            purpleHover: '#5851DB',
+                            light: '#F8F9FA',
+                            border: '#E3E8EE',
+                            card: '#FFFFFF',
+                            darkBg: '#0F172A',
+                            darkCard: '#1E293B',
+                            darkBorder: '#334155'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F9FA;
+            color: #425466;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .dark body {
+            background-color: #0B0F19;
+            color: #94A3B8;
+        }
+        .stripe-gradient-bg {
+            background: linear-gradient(135deg, #0A2540 0%, #1A365D 50%, #635BFF 100%);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(99, 91, 255, 0.3); }
+            50% { box-shadow: 0 0 25px rgba(99, 91, 255, 0.6); }
+        }
+        .glow-effect {
+            animation: pulseGlow 3s infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-white dark:bg-stripe-darkCard border-b border-stripe-border dark:border-stripe-darkBorder sticky top-0 z-50 backdrop-blur-md bg-opacity-90 dark:bg-opacity-90">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl stripe-gradient-bg flex items-center justify-center text-white shadow-md">
+                    <i class="fa-solid fa-brain text-lg"></i>
+                </div>
+                <div>
+                    <span class="text-xl font-extrabold text-stripe-navy dark:text-white tracking-tight">RAG<span class="text-stripe-purple">Engine</span></span>
+                    <span class="hidden sm:inline-block ml-2 px-2 py-0.5 text-xs font-semibold bg-stripe-purple/10 text-stripe-purple rounded-full">Stripe Interactive Studio</span>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button onclick="resetAllData()" class="text-xs font-medium px-3 py-1.5 rounded-lg border border-stripe-border dark:border-stripe-darkBorder text-stripe-slate dark:text-gray-300 hover:bg-stripe-light dark:hover:bg-stripe-darkBorder transition">
+                    <i class="fa-solid fa-rotate-right mr-1.5"></i> Reset Demo
+                </button>
+                <button onclick="toggleDarkMode()" class="w-9 h-9 rounded-lg border border-stripe-border dark:border-stripe-darkBorder flex items-center justify-center text-stripe-slate dark:text-gray-300 hover:bg-stripe-light dark:hover:bg-stripe-darkBorder transition">
+                    <i id="themeIcon" class="fa-solid fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col">
+        
+        <!-- Introduction Banner -->
+        <div class="bg-white dark:bg-stripe-darkCard rounded-2xl p-6 md:p-8 border border-stripe-border dark:border-stripe-darkBorder shadow-sm mb-8 relative overflow-hidden">
+            <div class="absolute right-0 top-0 w-96 h-96 bg-gradient-to-br from-stripe-purple/10 to-transparent rounded-full blur-3xl pointer-events-none"></div>
+            <div class="max-w-3xl relative z-10">
+                <div class="inline-flex items-center space-x-2 text-xs font-semibold uppercase tracking-wider text-stripe-purple mb-2">
+                    <i class="fa-solid fa-bolt"></i> Interactive Architecture Pipeline
+                </div>
+                <h1 class="text-2xl md:text-3xl font-extrabold text-stripe-navy dark:text-white mb-3">
+                    Retrieval-Augmented Generation (RAG) Studio
+                </h1>
+                <p class="text-stripe-slate dark:text-gray-300 text-sm md:text-base leading-relaxed">
+                    Explore how Large Language Models query external knowledge bases safely and accurately. Step through corpus ingestion, semantic chunking, vector embedding generation, cosine similarity retrieval, and context-grounded response generation.
+                </p>
+            </div>
+            <!-- Pipeline Progress Indicator -->
+            <div class="mt-6 grid grid-cols-2 sm:grid-cols-5 gap-2 pt-6 border-t border-stripe-border dark:border-stripe-darkBorder" id="pipelineNav">
+                <button onclick="switchStep(1)" class="pipeline-tab flex flex-col items-start p-3 rounded-xl border border-stripe-purple bg-stripe-purple/5 text-left transition group">
+                    <span class="text-[10px] font-bold uppercase text-stripe-purple tracking-wider">Step 1</span>
+                    <span class="text-xs font-semibold text-stripe-navy dark:text-white mt-0.5">1. Knowledge Base</span>
+                </button>
+                <button onclick="switchStep(2)" class="pipeline-tab flex flex-col items-start p-3 rounded-xl border border-stripe-border dark:border-stripe-darkBorder hover:border-stripe-purple/50 bg-white dark:bg-stripe-darkCard text-left transition group">
+                    <span class="text-[10px] font-bold uppercase text-stripe-slate dark:text-gray-400 tracking-wider">Step 2</span>
+                    <span class="text-xs font-semibold text-stripe-navy dark:text-white mt-0.5">2. Chunking</span>
+                </button>
+                <button onclick="switchStep(3)" class="pipeline-tab flex flex-col items-start p-3 rounded-xl border border-stripe-border dark:border-stripe-darkBorder hover:border-stripe-purple/50 bg-white dark:bg-stripe-darkCard text-left transition group">
+                    <span class="text-[10px] font-bold uppercase text-stripe-slate dark:text-gray-400 tracking-wider">Step 3</span>
+                    <span class="text-xs font-semibold text-stripe-navy dark:text-white mt-0.5">3. Embeddings</span>
+                </button>
+                <button onclick="switchStep(4)" class="pipeline-tab flex flex-col items-start p-3 rounded-xl border border-stripe-border dark:border-stripe-darkBorder hover:border-stripe-purple/50 bg-white dark:bg-stripe-darkCard text-left transition group">
+                    <span class="text-[10px] font-bold uppercase text-stripe-slate dark:text-gray-400 tracking-wider">Step 4</span>
+                    <span class="text-xs font-semibold text-stripe-navy dark:text-white mt-0.5">4. Vector Search</span>
+                </button>
+                <button onclick="switchStep(5)" class="pipeline-tab flex flex-col items-start p-3 rounded-xl border border-stripe-border dark:border-stripe-darkBorder hover:border-stripe-purple/50 bg-white dark:bg-stripe-darkCard text-left transition group col-span-2 sm:col-span-1">
+                    <span class="text-[10px] font-bold uppercase text-stripe-slate dark:text-gray-400 tracking-wider">Step 5</span>
+                    <span class="text-xs font-semibold text-stripe-navy dark:text-white mt-0.5">5. LLM Synthesis</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- STEP 1: Knowledge Base / Corpus -->
+        <div id="step1" class="step-content space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left: Document Form -->
+                <div class="bg-white dark:bg-stripe-darkCard rounded-2xl p-6 border border-stripe-border dark:border-stripe-darkBorder shadow-sm flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-stripe-navy dark:text-white flex items-center">
+                            <i class="fa-solid fa-book-bookmark text-stripe-purple mr-2"></i> Add Document
+                        </h2>
+                        <span class="text-xs bg-stripe-light dark:bg-stripe-darkBorder text-stripe-slate dark:text-gray-300 px-2.5 py-1 rounded-full font-medium" id="docCountBadge">3 Docs</span>
+                    </div>
+                    <p class="text-xs text-stripe-slate dark:text-gray-400 mb-4">
+                        Inject custom source material into your vector database corpus.
+                    </p>
+                    <div class="space-y-4 flex-1 flex flex-col">
+                        <div>
+                            <label class="block text-xs font-semibold text-stripe-navy dark:text-white mb-1">Document Title</label>
+                            <input type="text" id="newDocTitle" placeholder="e.g. Stripe Radar Risk Management" class="w-full px-3.5 py-2.5 bg-stripe-light dark:bg-stripe-darkBorder border border-stripe-border dark:border-stripe-darkBorder rounded-xl text-sm text-stripe-navy dark:text-white focus:outline-none focus:ring-2 focus:ring-stripe-purple">
+                        </div>
+                        <div class="flex-1 flex flex-col">
+                            <label class="block text-xs font-semibold text-stripe-navy dark:text-white mb-1">Document Content</label>
+                            <textarea id="newDocContent" rows="6" placeholder="Paste policy, documentation, or company handbook info here..." class="w-full flex-1 px-3.5 py-2.5 bg-stripe-light dark:bg-stripe-darkBorder border border-stripe-border dark:border-stripe-darkBorder rounded-xl text-sm text-stripe-navy dark:text-white focus:outline-none focus:ring-2 focus:ring-stripe-purple resize-none"></textarea>
+                        </div>
+                        <button onclick="addDocument()" class="w-full py-3 bg-stripe-purple hover:bg-stripe-purpleHover text-white font-semibold rounded-xl text-sm shadow-md transition flex items-center justify-center">
+                            <i class="fa-solid fa-plus mr-2"></i> Add to Corpus & Continue
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right: Corpus List -->
+                <div class="lg:col-span-2 bg-white dark:bg-stripe-darkCard rounded-2xl p-6 border border-stripe-border dark:border-stripe-darkBorder shadow-sm flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-stripe-navy dark:text-white flex items-center">
+                            <i class="fa-solid fa-database text-stripe-purple mr-2"></i> Knowledge Base Corpus
+                        </h2>
+                        <button onclick="loadDefaultCorpus()" class="text-xs font-semibold text-stripe-purple hover:underline">
+                            Reset to Default Docs
+                        </button>
+                    </div>
+                    <p class="text-xs text-stripe-slate dark:text-gray-400 mb-4">
+                        These raw documents form the ground truth that will be chunked, embedded, and retrieved.
+                    </p>
+                    <div id="corpusContainer" class="space-y-3 overflow-y-auto max-h-[420px] custom-scrollbar pr-2 flex-1">
+                        <!-- Dynamically populated -->
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-stripe-border dark:border-stripe-darkBorder flex justify-end">
+                        <button onclick="switchStep(2)" class="px-6 py-2.5 bg-stripe-navy dark:bg-stripe-purple text-white font-semibold rounded-xl text-sm shadow hover:opacity-90 transition flex items-center">
+                            Proceed to Chunking <i class="fa-solid fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 2: Chunking -->
+        <div id="step2" class="step-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left: Chunking Controls -->
+                <div class="bg-white dark:bg-stripe-darkCard rounded-2xl p-6 border border-stripe-border dark:border-stripe-darkBorder shadow-sm">
+                    <h2 class="text-lg font-bold text-stripe-navy dark:text-white mb-2 flex items-center">
+                        <i class="fa-solid fa-scissors text-stripe-purple mr-2"></i> Chunking Config
+                    </h2>
+                    <p class="text-xs text-stripe-slate dark:text-gray-400 mb-6">
+                        Large documents are split into smaller overlapping segments so embeddings capture precise semantic focus.
+                    </p>
+                    <div class="space-y-5">
+                        <div>
+                            <div class="flex justify-between text-xs font-semibold text-stripe-navy dark:text-white mb-1.5">
+                                <span>Chunk Size (Characters)</span>
+                                <span id="chunkSizeVal" class="text-stripe-purple font-mono">180</span>
+                            </div>
+                            <input type="range" id="chunkSizeRange" min="80" max="400" step="10" value="180" oninput="updateChunkParams()" class="w-full accent-stripe-purple">
+                            <span class="text-[11px] text-stripe-slate dark:text-gray-400">Controls max length of each chunk.</span>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs font-semibold text-stripe-navy dark:text-white mb-1.5">
+                                <span>Overlap (Characters)</span>
+                                <span id="chunkOverlapVal" class="text-stripe-purple font-mono">30</span>
+                            </div>
+                            <input type="range" id="chunkOverlapRange" min="0" max="100" step="5" value="30" oninput="updateChunkParams()" class="w-full accent-stripe-purple">
+                            <span class="text-[11px] text-stripe-slate dark:text-gray-400">Preserves context across chunk boundaries.</span>
+                        </div>
+                        <div class="p-4 bg-stripe-light dark:bg-stripe-darkBorder rounded-xl border border-stripe-border dark:border-stripe-darkBorder">
+                            <h4 class="text-xs font-bold text-stripe-navy dark:text-white mb-1"><i class="fa-solid fa-lightbulb text-amber-500 mr-1"></i> Why Chunk?</h4>
+                            <p class="text-[11px] text-stripe-slate dark:text-gray-300 leading-relaxed">
+                                LLMs have token context limits and higher accuracy when fed precise paragraphs rather than entire books. Overlapping ensures sentences aren't split awkwardly.
+                            </p>
+                        </div>
+                        <button onclick="runChunking()" class="w-full py-3 bg-stripe-purple hover:bg-stripe-purpleHover text-white font-semibold rounded-xl text-sm shadow-md transition">
+                            <i class="fa-solid fa-gear mr-2"></i> Re-Run Chunking Pipeline
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right: Generated Chunks Cards -->
+                <div class="lg:col-span-2 bg-white dark:bg-stripe-darkCard rounded-2xl p-6 border border-stripe-border dark:border-stripe-darkBorder shadow-sm flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-stripe-navy dark:text-white flex items-center">
+                            <i class="fa-solid fa-cubes text-stripe-purple mr-2"></i> Generated Text Chunks
+                        </h2>
+                        <span class="text-xs bg-stripe-purple/10 text-stripe-purple px-3 py-1 rounded-full font-semibold" id="totalChunksBadge">0 Chunks Created</span>
+                    </div>
+                    <p class="text-xs text-stripe-slate dark:text-gray-400 mb-4">
+                        Each card below represents an isolated chunk ready to be transformed into vector embeddings.
+                    </p>
+                    <div id="chunksContainer" class="space-y-3 overflow-y-auto max-h-[440px] custom-scrollbar pr-2 flex-1">
+                        <!-- Dynamically populated -->
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-stripe-border dark:border-stripe-darkBorder flex justify-between items-center">
+                        <button onclick="switchStep(1)" class="px-4 py-2 text-xs font-semibold text-stripe-slate dark:text-gray-300 hover:text-stripe-navy">
+                            <i class="fa-solid fa-arrow-left mr-1.5"></i> Back
+                        </button>
+                        <button onclick="switchStep(3)" class="px-6 py-2.5 bg-stripe-navy dark:bg-stripe-purple text-white font-semibold rounded-xl text-sm shadow hover:opacity-90 transition flex items-center">
+                            Proceed to Embeddings <i class="fa-solid fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 3: Vector Embeddings -->
+        <div id="step3" class="step-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left: Embedding Explanation -->
+                <div class="bg-white dark:bg-stripe-darkCard rounded-2xl p-6 border border-stripe-border dark:border-stripe-darkBorder shadow-sm">
+                    <h2 class="text-lg font-bold text-stripe-navy dark:text-white mb-2 flex items-center">
+                        <i class="fa-solid fa-wave-square text-stripe-purple mr-2"></i> Embedding Model
+                    </h2>
+                    <p class="text-xs text-stripe-slate dark:text-gray-400 mb-6">
+                        Converting text chunks into high-dimensional numerical vectors (simulated here in 3D coordinates for spatial visualization).
+                    </p>
+                    <div class="space-y-4">
+                        <div class="p-4 bg-stripe-light dark:bg-stripe-darkBorder rounded-xl border border-stripe-border dark:border-stripe-darkBorder space-y-2">
+                            <div class="flex justify-between text-xs">
+                                <span class="font-semibold text-stripe-navy dark:text-white">Model Architecture:</span>
+                                <span class="font-mono text-stripe-purple">text-embedding-ada-002</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span class="font-semibold text-stripe-navy dark:text-white">Dimensions:</span>
+                                <span class="font-mono text-stripe-slate dark:text-gray-300">1,536 (Simulated to 3D)</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span class="font-semibold text-stripe-navy dark:text-white">Vector Normalization:</span>
+                                <span class="font-mono text-emerald-600">L2 Unit Norm</span>
+                            </div>
+                        </div>
+                        <div class="text-xs text-stripe-slate dark:text-gray-400 leading-relaxed">
+                            Semantically similar sentences produce vectors that point in close geometric directions in vector space, regardless of exact keyword matches.
+                        </div>
+                        <button onclick="runEmbeddings()" class="w-full py-3 bg-stripe-purple hover:bg-stripe-purpleHover text-white font-semibold rounded-xl text-sm shadow-md transition">
+                            <i class="fa-solid fa-bolt mr-2"></i> Compute Vector Embeddings
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right: Vector Space Scatter Plot / Matrix Display -->
+                <div class="lg:col-span-2 bg-white dark:bg-stripe-darkCard rounded-2xl p-6 border border-stripe-border dark:border-stripe-darkBorder shadow-sm flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-stripe-navy dark:text-white flex items-center">
+                            <i class="fa-solid fa-chart-scatter text-stripe-purple mr-2"></i> Vector Space Projection (3D Map)
+                        </h2>
+                        <span class="text-xs bg-stripe-light dark:bg-stripe-darkBorder text-stripe-slate dark:text-gray-300 px-3 py-1 rounded-full font-medium">Cosine Similarity Grid</span>
+                    </div>
+                    <p class="text-xs text-stripe-slate dark:text-gray-400 mb-4">
+                        Inspect the simulated coordinates and sample numeric vectors for each processed chunk.
+                    </p>
+                    <div id="embeddingsListContainer" class="space-y-3 overflow-y-auto max-h-[420px] custom-scrollbar pr-2 flex-1">
+                        <!-- Dynamically populated -->
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-stripe-border dark:border-stripe-darkBorder flex justify-between items-center">
+                        <button onclick="switchStep(2)" class="px-4 py-2 text-xs font-semibold text-stripe-slate dark:text-gray-300 hover:text-stripe-navy">
+                            <i class="fa-solid fa-arrow-left mr-1.5"></i> Back
+                        </button>
+                        <button onclick="switchStep(4)" class="px-6 py-2.5 bg-stripe-navy dark:bg-stripe-purple text-white font-semibold rounded-xl text-sm shadow hover:opacity-90 transition flex items-center">
+                            Proceed to Vector Search <i class="fa-solid fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 4: User Query & Retrieval (Vector Search) -->
+        <div id="step4" class="step-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left: Query Input & Presets -->
+                <div class="bg-white dark:bg-stripe-darkCard rounded-2xl p-6 border border-stripe-border dark:border-stripe-darkBorder shadow-sm flex flex-col">
+                    <h2 class="text-lg font-bold text-stripe-navy dark:text-white mb-2 flex items-center">
+                        <i class="fa-solid fa-magnifying-glass text-stripe-purple mr-2"></i> User Query
+                    </h2>
+                    <p class="text-xs text-stripe-slate dark:text-gray-400 mb-4">
+                        Ask a question about Stripe features, fraud detection, or payouts to test retrieval.
+                    </p>
+                    <div class="space-y-4 flex-1 flex flex-col">
+                        <div>
+                            <label class="block text-xs font-semibold text-stripe-navy dark:text-white mb-1">Enter Prompt / Question</label>
+                            <textarea id="userQueryInput" rows="3" class="w-full px-3.5 py-2.5 bg-stripe-light dark:bg-stripe-darkBorder border border-stripe-border dark:border-stripe-darkBorder rounded-xl text-sm text-stripe-navy dark:text-white focus:outline-none focus:ring-2 focus:ring-stripe-purple resize-none">How does Stripe Radar prevent fraudulent card transactions?</textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-stripe-navy dark:text-white mb-1.5">Quick Presets</label>
+                            <div class="space-y-1.5">
+                                <button onclick="setQuery('How does Stripe Radar prevent fraudulent card transactions?')" class="w-full text-left text-xs p-2 bg-stripe-light dark:bg-stripe-darkBorder hover:bg-stripe-purple/10 rounded-lg text-stripe-slate dark:text-gray-300 transition truncate">
+                                    🔍 How does Stripe Radar prevent fraud?
+                                </button>
+                                <button onclick="setQuery('What are the payout schedules and transfer speeds available?')" class="w-full text-left text-xs p-2 bg-stripe-light dark:bg-stripe-darkBorder hover:bg-stripe-purple/10 rounded-lg text-stripe-slate dark:text-gray-300 transition truncate">
+                                    💸 What are the payout schedules?
+                                </button>
+                                <button onclick="setQuery('How do Stripe Checkout and Elements handle webhooks?')" class="w-full text-left text-xs p-2 bg-stripe-light dark:bg-stripe-darkBorder hover:bg-stripe-purple/10 rounded-lg text-stripe-slate dark:text-gray-300 transition truncate">
+                                    ⚡ How do Checkout webhooks work?
+                                </button>
+                            </div>
+                        </div>
+                        <div class="pt-2">
+                            <button onclick="runVectorSearch()" class="w-full py-3 bg-stripe-purple hover:bg-stripe-purpleHover text-white font-semibold rounded-xl text-sm shadow-md transition flex items-center justify-center">
+                                <i class="fa-solid fa-crosshairs mr-2"></i> Run Vector Similarity Search
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Search Results & Similarity Scores -->
+                <div class="lg:col-span-2 bg-white dark:bg-stripe-darkCard rounded-2xl p-6 border border-stripe-border dark:border-stripe-darkBorder shadow-sm flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-stripe-navy dark:text-white flex items-center">
+                            <i class="fa-solid fa-list-check text-stripe-purple mr-2"></i> Retrieved Context Chunks (Top-K)
+                        </h2>
+                        <span class="text-xs bg-emerald-500/10 text-emerald-600 px-3 py-1 rounded-full font-semibold" id="retrievalStatusBadge">Sorted by Cosine Similarity</span>
+                    </div>
+                    <p class="text-xs text-stripe-slate dark:text-gray-400 mb-4">
+                        The query embedding is compared against all chunk vectors. The highest scoring chunks will be injected into the LLM prompt.
+                    </p>
+                    <div id="retrievalResultsContainer" class="space-y-3 overflow-y-auto max-h-[420px] custom-scrollbar pr-2 flex-1">
+                        <!-- Dynamically populated -->
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-stripe-border dark:border-stripe-darkBorder flex justify-between items-center">
+                        <button onclick="switchStep(3)" class="px-4 py-2 text-xs font-semibold text-stripe-slate dark:text-gray-300 hover:text-stripe-navy">
+                            <i class="fa-solid fa-arrow-left mr-1.5"></i> Back
+                        </button>
+                        <button onclick="switchStep(5)" class="px-6 py-2.5 bg-stripe-navy dark:bg-stripe-purple text-white font-semibold rounded-xl text-sm shadow hover:opacity-90 transition flex items-center">
+                            Proceed to LLM Synthesis <i class="fa-solid fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 5: Generation / LLM Synthesis -->
+        <div id="step5" class="step-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left: Prompt Template Constructor -->
+                <div class="bg-white dark:bg-stripe-darkCard rounded-2xl p-6 border border-stripe-border dark:border-stripe-darkBorder shadow-sm flex flex-col">
+                    <h2 class="text-lg font-bold text-stripe-navy dark:text-white mb-2 flex items-center">
+                        <i class="fa-solid fa-terminal text-stripe-purple mr-2"></i> Augmented Prompt
+                    </h2>
+                    <p class="text-xs text-stripe-slate dark:text-gray-400 mb-4">
+                        The retrieved context chunks are wrapped into the LLM prompt template to prevent hallucination.
+                    </p>
+                    <div class="space-y-4 flex-1 flex flex-col">
+                        <div class="flex-1 flex flex-col">
+                            <label class="block text-xs font-semibold text-stripe-navy dark:text-white mb-1">Constructed Prompt Payload</label>
+                            <textarea id="augmentedPromptDisplay" rows="10" readonly class="w-full flex-1 px-3.5 py-2.5 bg-stripe-light dark:bg-stripe-darkBorder border border-stripe-border dark:border-stripe-darkBorder rounded-xl font-mono text-[11px] text-stripe-navy dark:text-gray-200 focus:outline-none resize-none"></textarea>
+                        </div>
+                        <button onclick="runGeneration()" class="w-full py-3 bg-stripe-purple hover:bg-stripe-purpleHover text-white font-semibold rounded-xl text-sm shadow-md transition flex items-center justify-center">
+                            <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Generate Grounded Answer
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right: LLM Streaming Output -->
+                <div class="lg:col-span-2 bg-white dark:bg-stripe-darkCard rounded-2xl p-6 border border-stripe-border dark:border-stripe-darkBorder shadow-sm flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-stripe-navy dark:text-white flex items-center">
+                            <i class="fa-solid fa-robot text-stripe-purple mr-2"></i> LLM Synthesized Response
+                        </h2>
+                        <span id="genStatusBadge" class="text-xs bg-stripe-purple/10 text-stripe-purple px-3 py-1 rounded-full font-semibold">Ready to Generate</span>
+                    </div>
+                    <p class="text-xs text-stripe-slate dark:text-gray-400 mb-4">
+                        Grounded strictly in retrieved context. Citations link back to original corpus documents.
+                    </p>
+                    <div id="llmOutputContainer" class="p-5 bg-stripe-light dark:bg-stripe-darkBorder rounded-xl border border-stripe-border dark:border-stripe-darkBorder min-h-[260px] max-h-[340px] overflow-y-auto custom-scrollbar flex-1 flex flex-col justify-between">
+                        <div id="llmTextContent" class="text-sm text-stripe-navy dark:text-gray-100 leading-relaxed font-sans">
+                            <span class="text-stripe-slate dark:text-gray-400 italic">Click "Generate Grounded Answer" to simulate streaming LLM generation using the retrieved top chunks...</span>
+                        </div>
+                        <div id="llmCitationsArea" class="mt-4 pt-3 border-t border-stripe-border dark:border-stripe-darkBorder hidden">
+                            <div class="text-[11px] font-bold uppercase tracking-wider text-stripe-slate dark:text-gray-400 mb-2">Grounded Sources / Citations:</div>
+                            <div id="citationsList" class="flex flex-wrap gap-2"></div>
+                        </div>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-stripe-border dark:border-stripe-darkBorder flex justify-between items-center">
+                        <button onclick="switchStep(4)" class="px-4 py-2 text-xs font-semibold text-stripe-slate dark:text-gray-300 hover:text-stripe-navy">
+                            <i class="fa-solid fa-arrow-left mr-1.5"></i> Back to Search
+                        </button>
+                        <button onclick="switchStep(1)" class="px-6 py-2.5 bg-stripe-navy dark:bg-stripe-purple text-white font-semibold rounded-xl text-sm shadow hover:opacity-90 transition flex items-center">
+                            <i class="fa-solid fa-rotate-right mr-2"></i> Start Over
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-auto py-6 text-center text-xs text-stripe-slate dark:text-gray-500 border-t border-stripe-border dark:border-stripe-darkBorder">
+        RAG Engine Simulator • Designed with Stripe Aesthetics • Powered by HTML5, Tailwind & Vanilla JS
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // --- State Management ---
+        let documents = [
+            {
+                id: 1,
+                title: "Stripe Radar Fraud Prevention",
+                content: "Stripe Radar uses machine learning trained on data from millions of global companies to automatically block fraudulent card transactions. It analyzes device fingerprints, IP proxy detection, and deep behavioral signals in milliseconds without hurting conversion rates for legitimate customers."
+            },
+            {
+                id: 2,
+                title: "Stripe Payout Schedules & Transfers",
+                content: "Standard payout schedules vary by country, typically taking 2 business days in the US and UK. Businesses can also utilize Stripe Instant Payouts to deposit funds immediately to eligible debit cards or bank accounts 24/7/365 for a small percentage fee."
+            },
+            {
+                id: 3,
+                title: "Stripe Checkout & Webhooks Architecture",
+                content: "Stripe Checkout is a prebuilt, conversion-optimized payment page. When payment events occur (e.g. payment_intent.succeeded), Stripe securely dispatches webhook HTTP POST events to your server endpoints with cryptographic signature verification."
+            }
+        ];
+
+        let chunks = [];
+        let currentStep = 1;
+        let isDarkMode = false;
+
+        // --- Initialization on Load ---
+        window.onload = function() {
+            runChunking();
+            runEmbeddings();
+            renderCorpus();
+            runVectorSearch();
+        };
+
+        // --- Dark Mode Toggle ---
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            document.documentElement.classList.toggle('dark', isDarkMode);
+            const icon = document.getElementById('themeIcon');
+            icon.className = isDarkMode ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+        }
+
+        // --- Step Navigation ---
+        function switchStep(stepNum) {
+            currentStep = stepNum;
+            document.querySelectorAll('.step-content').forEach((el, idx) => {
+                el.classList.toggle('hidden', (idx + 1) !== stepNum);
+            });
+
+            // Update tab styles
+            const tabs = document.querySelectorAll('.pipeline-tab');
+            tabs.forEach((tab, idx) => {
+                const sNum = idx + 1;
+                if (sNum === stepNum) {
+                    tab.className = "pipeline-tab flex flex-col items-start p-3 rounded-xl border border-stripe-purple bg-stripe-purple/5 text-left transition group";
+                    tab.querySelector('span:first-child').className = "text-[10px] font-bold uppercase text-stripe-purple tracking-wider";
+                } else {
+                    tab.className = "pipeline-tab flex flex-col items-start p-3 rounded-xl border border-stripe-border dark:border-stripe-darkBorder hover:border-stripe-purple/50 bg-white dark:bg-stripe-darkCard text-left transition group";
+                    tab.querySelector('span:first-child').className = "text-[10px] font-bold uppercase text-stripe-slate dark:text-gray-400 tracking-wider";
+                }
+            });
+
+            if (stepNum === 4) {
+                runVectorSearch();
+            } else if (stepNum === 5) {
+                prepareAugmentedPrompt();
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // --- Step 1: Document Corpus Functions ---
+        function renderCorpus() {
+            const container = document.getElementById('corpusContainer');
+            document.getElementById('docCountBadge').innerText = `${documents.length} Docs`;
+            container.innerHTML = '';
+            
+            documents.forEach((doc, index) => {
+                container.innerHTML += `
+                    <div class="p-4 bg-stripe-light dark:bg-stripe-darkBorder rounded-xl border border-stripe-border dark:border-stripe-darkBorder flex items-start justify-between">
+                        <div class="space-y-1 pr-4">
+                            <div class="flex items-center space-x-2">
+                                <span class="px-2 py-0.5 text-[10px] font-bold bg-stripe-purple/10 text-stripe-purple rounded">Doc #${doc.id}</span>
+                                <h3 class="text-sm font-bold text-stripe-navy dark:text-white">${doc.title}</h3>
+                            </div>
+                            <p class="text-xs text-stripe-slate dark:text-gray-300 leading-relaxed line-clamp-2">${doc.content}</p>
+                        </div>
+                        <button onclick="deleteDocument(${doc.id})" class="text-stripe-slate hover:text-red-500 p-1 transition" title="Delete Document">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+                    </div>
+                `;
+            });
+        }
+
+        function addDocument() {
+            const titleInput = document.getElementById('newDocTitle');
+            const contentInput = document.getElementById('newDocContent');
+            if (!titleInput.value || !contentInput.value) {
+                alert('Please fill in both title and document content.');
+                return;
+            }
+            const newDoc = {
+                id: documents.length > 0 ? Math.max(...documents.map(d => d.id)) + 1 : 1,
+                title: titleInput.value,
+                content: contentInput.value
+            };
+            documents.push(newDoc);
+            titleInput.value = '';
+            contentInput.value = '';
+            renderCorpus();
+            runChunking();
+            runEmbeddings();
+            switchStep(2);
+        }
+
+        function deleteDocument(id) {
+            if (documents.length <= 1) {
+                alert('Corpus must contain at least one document.');
+                return;
+            }
+            documents = documents.filter(d => d.id !== id);
+            renderCorpus();
+            runChunking();
+            runEmbeddings();
+        }
+
+        function loadDefaultCorpus() {
+            documents = [
+                {
+                    id: 1,
+                    title: "Stripe Radar Fraud Prevention",
+                    content: "Stripe Radar uses machine learning trained on data from millions of global companies to automatically block fraudulent card transactions. It analyzes device fingerprints, IP proxy detection, and deep behavioral signals in milliseconds without hurting conversion rates for legitimate customers."
+                },
+                {
+                    id: 2,
+                    title: "Stripe Payout Schedules & Transfers",
+                    content: "Standard payout schedules vary by country, typically taking 2 business days in the US and UK. Businesses can also utilize Stripe Instant Payouts to deposit funds immediately to eligible debit cards or bank accounts 24/7/365 for a small percentage fee."
+                },
+                {
+                    id: 3,
+                    title: "Stripe Checkout & Webhooks Architecture",
+                    content: "Stripe Checkout is a prebuilt, conversion-optimized payment page. When payment events occur (e.g. payment_intent.succeeded), Stripe securely dispatches webhook HTTP POST events to your server endpoints with cryptographic signature verification."
+                }
+            ];
+            renderCorpus();
+            runChunking();
+            runEmbeddings();
+        }
+
+        // --- Step 2: Chunking Functions ---
+        function updateChunkParams() {
+            const size = document.getElementById('chunkSizeRange').value;
+            const overlap = document.getElementById('chunkOverlapRange').value;
+            document.getElementById('chunkSizeVal').innerText = size;
+            document.getElementById('chunkOverlapVal').innerText = overlap;
+        }
+
+        function runChunking() {
+            const chunkSize = parseInt(document.getElementById('chunkSizeRange').value) || 180;
+            const overlap = parseInt(document.getElementById('chunkOverlapRange').value) || 30;
+            chunks = [];
+            let chunkIdCounter = 1;
+
+            documents.forEach(doc => {
+                let text = doc.content;
+                let start = 0;
+                while (start < text.length) {
+                    let end = Math.min(start + chunkSize, text.length);
+                    // Try to break at space or punctuation if possible
+                    if (end < text.length) {
+                        let lastSpace = text.lastIndexOf(' ', end);
+                        if (lastSpace > start + 50) end = lastSpace + 1;
+                    }
+                    let chunkText = text.substring(start, end).trim();
+                    if (chunkText.length > 0) {
+                        chunks.push({
+                            id: chunkIdCounter++,
+                            docId: doc.id,
+                            docTitle: doc.title,
+                            text: chunkText,
+                            vector: generatePseudoVector(chunkText)
+                        });
+                    }
+                    start += (chunkSize - overlap);
+                }
+            });
+
+            renderChunks();
+        }
+
+        function renderChunks() {
+            const container = document.getElementById('chunksContainer');
+            document.getElementById('totalChunksBadge').innerText = `${chunks.length} Chunks Created`;
+            container.innerHTML = '';
+
+            chunks.forEach(c => {
+                container.innerHTML += `
+                    <div class="p-4 bg-stripe-light dark:bg-stripe-darkBorder rounded-xl border border-stripe-border dark:border-stripe-darkBorder space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2 py-0.5 text-[10px] font-bold bg-stripe-purple/10 text-stripe-purple rounded">Chunk #${c.id} (Doc #${c.docId})</span>
+                            <span class="text-[11px] font-mono text-stripe-slate dark:text-gray-400">${c.text.length} chars</span>
+                        </div>
+                        <p class="text-xs font-mono text-stripe-navy dark:text-gray-200 bg-white dark:bg-stripe-card p-2.5 rounded-lg border border-stripe-border dark:border-stripe-darkBorder">"${c.text}"</p>
+                        <div class="text-[11px] text-stripe-slate dark:text-gray-400 flex items-center">
+                            <i class="fa-solid fa-tag text-stripe-purple mr-1"></i> Source: <strong class="ml-1 text-stripe-navy dark:text-white">${c.docTitle}</strong>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // --- Step 3: Embeddings Functions ---
+        function generatePseudoVector(str) {
+            // Deterministic pseudo-random vector generation based on string hash
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash |= 0;
+            }
+            let x = Math.sin(hash + 1) * 0.9;
+            let y = Math.sin(hash + 2) * 0.9;
+            let z = Math.sin(hash + 3) * 0.9;
+            return [parseFloat(x.toFixed(2)), parseFloat(y.toFixed(2)), parseFloat(z.toFixed(2))];
+        }
+
+        function runEmbeddings() {
+            renderEmbeddingsList();
+        }
+
+        function renderEmbeddingsList() {
+            const container = document.getElementById('embeddingsListContainer');
+            container.innerHTML = '';
+
+            chunks.forEach(c => {
+                container.innerHTML += `
+                    <div class="p-4 bg-stripe-light dark:bg-stripe-darkBorder rounded-xl border border-stripe-border dark:border-stripe-darkBorder space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2 py-0.5 text-[10px] font-bold bg-stripe-purple/10 text-stripe-purple rounded">Chunk #${c.id} Vector</span>
+                            <span class="text-[11px] font-mono text-emerald-600 font-semibold">[Normalized 3D Float Array]</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs font-mono bg-white dark:bg-stripe-card p-2.5 rounded-lg border border-stripe-border dark:border-stripe-darkBorder">
+                            <span class="text-stripe-navy dark:text-gray-200">[${c.vector.join(', ')}...]</span>
+                            <span class="text-stripe-slate dark:text-gray-400 text-[10px]">Dim: 1536</span>
+                        </div>
+                        <p class="text-[11px] text-stripe-slate dark:text-gray-400 truncate">"${c.text}"</p>
+                    </div>
+                `;
+            });
+        }
+
+        // --- Step 4: Vector Search Functions ---
+        function setQuery(q) {
+            document.getElementById('userQueryInput').value = q;
+            runVectorSearch();
+        }
+
+        function cosineSimilarity(vecA, vecB) {
+            let dotProduct = vecA[0] * vecB[0] + vecA[1] * vecB[1] + vecA[2] * vecB[2];
+            let normA = Math.sqrt(vecA[0]**2 + vecA[1]**2 + vecA[2]**2);
+            let normB = Math.sqrt(vecB[0]**2 + vecB[1]**2 + vecB[2]**2);
+            if (normA === 0 || normB === 0) return 0;
+            return dotProduct / (normA * normB);
+        }
+
+        let lastRetrievedChunks = [];
+
+        function runVectorSearch() {
+            const queryText = document.getElementById('userQueryInput').value || "Stripe security";
+            const queryVector = generatePseudoVector(queryText);
+
+            // Calculate similarity score for each chunk
+            let scoredChunks = chunks.map(c => {
+                let score = cosineSimilarity(queryVector, c.vector);
+                // Normalize score into realistic 0.65 to 0.98 similarity range for good UX
+                let normalizedScore = 0.65 + Math.abs(score) * 0.33;
+                if (normalizedScore > 0.99) normalizedScore = 0.98;
+                return { ...c, score: parseFloat(normalizedScore.toFixed(3)) };
+            });
+
+            // Sort descending by similarity score
+            scoredChunks.sort((a, b) => b.score - a.score);
+            lastRetrievedChunks = scoredChunks.slice(0, 3); // Top-K = 3
+
+            const container = document.getElementById('retrievalResultsContainer');
+            container.innerHTML = `
+                <div class="p-3 bg-stripe-purple/10 rounded-xl border border-stripe-purple/20 mb-3 flex items-center justify-between">
+                    <span class="text-xs font-bold text-stripe-navy dark:text-white"><i class="fa-solid fa-terminal text-stripe-purple mr-1.5"></i> Query Vector: [${queryVector.join(', ')}]</span>
+                    <span class="text-xs font-mono text-stripe-purple font-bold">Top-3 Retrieved</span>
+                </div>
+            `;
+
+            lastRetrievedChunks.forEach((c, idx) => {
+                let badgeColor = idx === 0 ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' : 'bg-stripe-light dark:bg-stripe-darkBorder text-stripe-slate dark:text-gray-300';
+                container.innerHTML += `
+                    <div class="p-4 bg-white dark:bg-stripe-card rounded-xl border border-stripe-border dark:border-stripe-darkBorder space-y-2 relative shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2 py-0.5 text-[10px] font-bold ${badgeColor} border rounded">Rank #${idx + 1} • Chunk #${c.id}</span>
+                            <span class="text-xs font-mono font-bold text-stripe-purple">Similarity: ${(c.score * 100).toFixed(1)}%</span>
+                        </div>
+                        <p class="text-xs font-mono text-stripe-navy dark:text-gray-200 bg-stripe-light dark:bg-stripe-darkBorder p-2.5 rounded-lg border border-stripe-border dark:border-stripe-darkBorder">"${c.text}"</p>
+                        <div class="text-[11px] text-stripe-slate dark:text-gray-400">
+                            Source Document: <strong class="text-stripe-navy dark:text-white">${c.docTitle}</strong>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // --- Step 5: LLM Generation & Prompt Assembly ---
+        function prepareAugmentedPrompt() {
+            runVectorSearch(); // Ensure latest query is evaluated
+            const queryText = document.getElementById('userQueryInput').value;
+            
+            let contextBlock = lastRetrievedChunks.map((c, i) => `[Source ${i+1}]: ${c.text}`).join('\n\n');
+
+            let promptTemplate = `### System Instructions
+You are an expert AI assistant for Stripe. Answer the user's question accurately using ONLY the provided context below. If the answer is not in the context, state that you do not know. Cite your sources using [Source X] notation.
+
+### Retrieved Knowledge Context:
+${contextBlock}
+
+### User Question:
+${queryText}
+
+### Answer:`;
+
+            document.getElementById('augmentedPromptDisplay').value = promptTemplate;
+        }
+
+        function runGeneration() {
+            prepareAugmentedPrompt();
+            const queryText = document.getElementById('userQueryInput').value;
+            const textContainer = document.getElementById('llmTextContent');
+            const citationsArea = document.getElementById('llmCitationsArea');
+            const citationsList = document.getElementById('citationsList');
+            const statusBadge = document.getElementById('genStatusBadge');
+
+            textContainer.innerHTML = '';
+            citationsArea.classList.add('hidden');
+            statusBadge.innerText = 'Streaming Response...';
+            statusBadge.className = 'text-xs bg-amber-500/10 text-amber-600 px-3 py-1 rounded-full font-semibold animate-pulse';
+
+            // Formulate grounded response based on query
+            let responseText = "";
+            let sourceCitations = [];
+
+            if (queryText.toLowerCase().includes('fraud') || queryText.toLowerCase().includes('radar')) {
+                responseText = "Stripe Radar protects businesses against fraudulent card transactions by utilizing advanced machine learning models trained across millions of global companies. It analyzes multiple real-time signals including device fingerprints and IP proxies to automatically block fraud while preserving smooth approval rates for legitimate customers [Source 1].";
+                sourceCitations = ["Stripe Radar Fraud Prevention"];
+            } else if (queryText.toLowerCase().includes('payout') || queryText.toLowerCase().includes('transfer')) {
+                responseText = "Standard payout schedules depend on your country, typically taking 2 business days in regions like the US and UK. Additionally, businesses can leverage Stripe Instant Payouts to deposit funds immediately to eligible debit cards or bank accounts 24/7/365 for a minor percentage fee [Source 1].";
+                sourceCitations = ["Stripe Payout Schedules & Transfers"];
+            } else if (queryText.toLowerCase().includes('webhook') || queryText.toLowerCase().includes('checkout')) {
+                responseText = "Stripe Checkout provides a conversion-optimized hosted payment page. When payment events occur (such as payment_intent.succeeded), Stripe securely transmits webhook HTTP POST requests to your registered server endpoints, complete with cryptographic signature verification for security [Source 1].";
+                sourceCitations = ["Stripe Checkout & Webhooks Architecture"];
+            } else {
+                responseText = `Based on the retrieved documentation regarding "${queryText}", Stripe provides robust developer APIs and secure infrastructure to handle payment processing, fraud mitigation, and automated payouts with high reliability [Source 1].`;
+                sourceCitations = [lastRetrievedChunks[0]?.docTitle || "Stripe Documentation"];
+            }
+
+            // Simulate streaming effect
+            let charIndex = 0;
+            textContainer.innerHTML = '<span class="inline-block w-2 h-4 bg-stripe-purple animate-pulse ml-0.5"></span>';
+            
+            let streamInterval = setInterval(() => {
+                if (charIndex < responseText.length) {
+                    let currentText = responseText.substring(0, charIndex + 1);
+                    textContainer.innerHTML = currentText + '<span class="inline-block w-2 h-4 bg-stripe-purple animate-pulse ml-0.5"></span>';
+                    charIndex++;
+                } else {
+                    clearInterval(streamInterval);
+                    textContainer.innerHTML = responseText;
+                    statusBadge.innerText = 'Generation Complete';
+                    statusBadge.className = 'text-xs bg-emerald-500/10 text-emerald-600 px-3 py-1 rounded-full font-semibold';
+                    
+                    // Render citations
+                    citationsArea.classList.remove('hidden');
+                    citationsList.innerHTML = '';
+                    sourceCitations.forEach(source => {
+                        citationsList.innerHTML += `<span class="px-2.5 py-1 text-xs bg-stripe-purple/10 text-stripe-purple rounded-lg font-medium border border-stripe-purple/20"><i class="fa-solid fa-file-lines mr-1.5"></i> ${source}</span>`;
+                    });
+                }
+            }, 18);
+        }
+
+        function resetAllData() {
+            loadDefaultCorpus();
+            document.getElementById('chunkSizeRange').value = 180;
+            document.getElementById('chunkOverlapRange').value = 30;
+            updateChunkParams();
+            runChunking();
+            runEmbeddings();
+            setQuery('How does Stripe Radar prevent fraudulent card transactions?');
+            switchStep(1);
+        }
+    </script>
+</body>
+</html>
